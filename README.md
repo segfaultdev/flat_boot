@@ -3,10 +3,10 @@ flat_boot is a single-stage, 512-byte bootloader designed for the x86 platform, 
 
 ## Screenshots
 
-My OS's default boot menu:
+My OS's default boot menu:<br>
 ![](https://github.com/segfaultdev/flat_boot/raw/main/photo1.png)
 
-Example for testing:
+Example for testing:<br>
 ![](https://github.com/segfaultdev/flat_boot/raw/main/photo2.png)
 
 ## Does it boot into protected mode?

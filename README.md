@@ -3,7 +3,11 @@ flat_boot is a single-stage, 512-byte bootloader designed for the x86 platform, 
 
 ## Screenshots
 
-![](bob)
+My OS's default boot menu:
+![](https://github.com/segfaultdev/flat_boot/raw/main/photo1.png)
+
+Example for testing:
+![](https://github.com/segfaultdev/flat_boot/raw/main/photo2.png)
 
 ## Does it boot into protected mode?
 Yes, and it is loaded into address 0x8000, inside the first MiB, but the loaded GDT just has a single code entry, and you should replace it in your first instruction on the loaded binary with something like ```lgdt [cs:gdt_ptr]```.

@@ -1,10 +1,12 @@
 # flat_boot
 flat_boot is a single-stage, 512-byte bootloader designed for the x86 platform, and it has been tested on QEMU, VirtualBox, Bochs, a core 2 quad, a modern i7 and two 486s. Unlike most other single-stage bootloaders out there, this one is almost as configurable and user-friendly as advanced bootloaders like GRUB, making it a great alternative if the OS you want to load is loadable in binary format.
 
+(Update: Added reboot option with F1, thanks to the optimizations by Octocontrabass)
+
 ## Screenshots
 
-My OS's default boot menu:<br>
-![](https://github.com/segfaultdev/flat_boot/raw/main/photo1.png)
+My OS's default boot menu(now with reboot option):<br>
+![](https://github.com/segfaultdev/flat_boot/raw/main/photo3.png)
 
 Example for testing:<br>
 ![](https://github.com/segfaultdev/flat_boot/raw/main/photo2.png)

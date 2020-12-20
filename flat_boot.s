@@ -16,9 +16,8 @@ flat_boot:
   mov ss, ax
   mov sp, FLAT_STACK
   mov [FLAT_DEVICE], dl
-  mov si, FLAT_DAP
+  mov di, FLAT_DAP
   mov cx, 0x0008
-  xor dx, dx
   call mem_set
 
   pusha
@@ -36,25 +35,27 @@ flat_boot:
   call load_blocks
 
   mov si, flat_config_file_str
-  mov di, FLAT_DIR_BUFFER
+  ; mov di, FLAT_DIR_BUFFER
   ; xor ax, ax ; Could be skipped
   mov bx, FLAT_FILE_BUFFER
   call load_blocks
 
-flat_menu:
   mov ah, 0xB8
   mov es, ax
-  xor si, si
+  xor di, di
   mov cx, 0x0FA0
-  mov dx, 0x0F00
+  mov ah, 0x0F
   call mem_set
   mov cx, 0x0050
-  mov dh, 0x70 ; mov dx, 0x7000
+  mov ah, 0x70 ; mov dx, 0x7000
   call mem_set
-  mov si, 0x0F00
+  mov di, 0x0F00
   call mem_set
   xor ax, ax
   mov es, ax
+  mov si, flat_menu_reboot_str
+  mov bx, 0x0DC2
+  call puts
   mov si, flat_menu_title_str
   mov bx, 0x0002
   call puts
@@ -79,6 +80,8 @@ flat_menu_list:
 flat_menu_handler:
   xor ax, ax
   int 0x16
+  cmp ah, 0x3B
+  je reboot
   cmp al, '0'
   jl flat_menu_handler
   sub al, '0'
@@ -111,6 +114,10 @@ flat_menu_handler:
 
   jmp $
 
+reboot:
+  mov word [0x0472], 0x1234
+  int 0x19
+
 load_blocks:
   ; Args:
   ; - si: Entry to look for
@@ -121,7 +128,7 @@ load_blocks:
   mov cx, 0x0040
 .load_loop:
   test cx, cx
-  jz halt
+  jz $
   call str_cmp
   jz .end_load_loop
   add di, 0x0040
@@ -158,20 +165,13 @@ load_blocks:
   popa
   ret
 
-mem_set:
+mem_set: ; Thanks to Octocontrabass for making it smaller
   ; Args:
-  ; - si: Buffer
+  ; - di: Buffer
   ; - cx: Word count
-  ; - dx: What to set all words to
+  ; - ax: What to set all words to
   pusha
-mem_set_loop:
-  test cx, cx
-  jz mem_set_end
-  mov [es:si], dx
-  add si, 0x0002
-  dec cx
-  jmp mem_set_loop
-mem_set_end:
+  rep stosw
   popa
   ret
 
@@ -264,15 +264,6 @@ str_nth:
 str_nth_end:
   ret
 
-halt:
-  mov ax, 0xB800
-  mov es, ax
-  xor bx, bx
-  mov word [es:bx], 0x4F45
-  cli
-  hlt
-  jmp halt
-
 gdt_start:
 gdt_null: ; 0x00
   dd 0x00000000
@@ -294,6 +285,7 @@ entry_cnt: db 0x00 ; Entry count variable
 
 flat_menu_title_str:  db "flat_boot:", 0x00 ; Menu title
 flat_menu_sel_str:    db "[0]", 0x00 ; Menu selector
+flat_menu_reboot_str: db "[F1] Reboot", 0x00 ; Reboot string
 
 flat_boot_dir_str:    db "boot", 0x00
 flat_config_file_str: db "config.txt", 0x00

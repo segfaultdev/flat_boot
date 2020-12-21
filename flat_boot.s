@@ -4,6 +4,7 @@
 %define FLAT_FILE_BUFFER 0x8000
 %define FLAT_DIR_BUFFER  0x1000
 %define FLAT_LIST_BUFFER 0x2000
+%define FLAT_HELP_BUFFER 0x3000
 
 %define FLAT_STACK       0x7000
 %define FLAT_DEVICE      0x7000
@@ -20,9 +21,10 @@ flat_boot:
   mov cx, 0x0008
   call mem_set
 
+  mov bx, FLAT_DIR_BUFFER
+
   pusha
   ; xor ax, ax ; Could be skipped
-  mov bx, FLAT_DIR_BUFFER
   ; mov cx, 0x0008 ; Could be skipped
   mov dx, cx ; mov dx, 0x0008 ; Could be replaced with "mov dx, cx"
   call load_sectors
@@ -31,8 +33,8 @@ flat_boot:
   mov si, flat_boot_dir_str
   mov di, FLAT_DIR_BUFFER
   ; xor ax, ax ; Could be skipped
-  mov bx, FLAT_DIR_BUFFER
-  call load_blocks
+  ; mov bx, FLAT_DIR_BUFFER
+  call load_blocks ; Could be skipped
 
   mov si, flat_config_file_str
   ; mov di, FLAT_DIR_BUFFER
@@ -40,6 +42,8 @@ flat_boot:
   mov bx, FLAT_FILE_BUFFER
   call load_blocks
 
+flat_menu:
+  push es
   mov ah, 0xB8
   mov es, ax
   xor di, di
@@ -47,12 +51,13 @@ flat_boot:
   mov ah, 0x0F
   call mem_set
   mov cx, 0x0050
-  mov ah, 0x70 ; mov dx, 0x7000
+  mov ah, 0x70
   call mem_set
   mov di, 0x0F00
   call mem_set
-  xor ax, ax
-  mov es, ax
+  ; xor ax, ax
+  ; mov es, ax
+  pop es
   mov si, flat_menu_reboot_str
   mov bx, 0x0DC2
   call puts
@@ -80,42 +85,76 @@ flat_menu_list:
 flat_menu_handler:
   xor ax, ax
   int 0x16
+  
   cmp ah, 0x3B
+  je help
+  cmp ah, 0x3C
   je reboot
   cmp al, '0'
   jl flat_menu_handler
   sub al, '0'
   cmp al, [entry_cnt]
   jge flat_menu_handler
-  xor cx, cx
   mov cl, al
-  add cx, cx
-  inc cx
+  add cl, cl
+  inc cl
   mov si, FLAT_FILE_BUFFER
   call str_nth
-
+  
   mov di, FLAT_DIR_BUFFER
   xor ax, ax
   mov bx, FLAT_FILE_BUFFER
   call load_blocks
 
-  mov ax, 0x1112
-  xor bl, bl
-  int 0x10
+  ; mov ax, 0x1112
+  ; xor bl, bl
+  ; int 0x10
   mov ax, 0x2401
   int 0x15
   cli
   lgdt [gdt_ptr]
 
   mov eax, cr0 
-  or eax, 0x00000001
+  or al, 0x01 ; or eax, 0x00000001
   mov cr0, eax
   jmp 0x08:FLAT_FILE_BUFFER
 
-  jmp $
+help:
+  mov si, flat_help_file_str
+  xor ax, ax
+  mov bx, FLAT_HELP_BUFFER
+  call load_blocks
+  mov si, bx
+  mov dh, 0x70
+  mov bx, 0x0150
+  mov cl, 0x10 ; Line count
+.line_loop:
+  test cl, cl
+  jz .line_end
+  mov ch, 0x40 ; Char count
+.char_loop:
+  test ch, ch
+  jz .char_end
+  mov dl, [si]
+  inc si
+  push es
+  mov ah, 0xB8
+  mov es, ax
+  mov [es:bx], dx
+  add bx, 0x0002
+  pop es
+  dec ch
+  jmp .char_loop
+.char_end:
+  add bx, 0x0020
+  dec cl
+  jmp .line_loop
+.line_end:
+  xor ax, ax
+  int 0x16
+  ; jmp reboot
 
 reboot:
-  mov word [0x0472], 0x1234
   int 0x19
 
 load_blocks:
@@ -171,6 +210,7 @@ mem_set: ; Thanks to Octocontrabass for making it smaller
   ; - cx: Word count
   ; - ax: What to set all words to
   pusha
+  cld
   rep stosw
   popa
   ret
@@ -249,20 +289,25 @@ str_next:
   cmp byte [si], 0x00
   je str_next_end
   inc si
-  cmp byte [si-1], 0x0A
+  cmp byte [si - 1], 0x0A
   je str_next_end
   jmp str_next
 str_next_end:
   ret
 
 str_nth:
-  test cx, cx
+  test cl, cl
   jz str_nth_end
-  dec cx
+  dec cl
   call str_next
   jmp str_nth
 str_nth_end:
   ret
+
+flat_menu_title_str:  db "flat_boot:", 0x00 ; Menu title
+flat_menu_sel_str:    db "[0]", 0x00 ; Menu selector
+flat_menu_help_str:   db "[F1] Help", 0x00 ; Help string
+flat_menu_reboot_str: db "[F2] Reboot" ; , 0x00 ; Reboot string
 
 gdt_start:
 gdt_null: ; 0x00
@@ -281,15 +326,11 @@ gdt_ptr:
   dw gdt_end - gdt_start
   dd gdt_start
 
-entry_cnt: db 0x00 ; Entry count variable
-
-flat_menu_title_str:  db "flat_boot:", 0x00 ; Menu title
-flat_menu_sel_str:    db "[0]", 0x00 ; Menu selector
-flat_menu_reboot_str: db "[F1] Reboot", 0x00 ; Reboot string
-
-flat_boot_dir_str:    db "boot", 0x00
 flat_config_file_str: db "config.txt", 0x00
-; flat_boot_file_str:   db "flat_core.bin", 0x00
+flat_help_file_str:   db "help.txt", 0x00
+flat_boot_dir_str:    db "boot" ; , 0x00
+
+entry_cnt: db 0x00
 
 times 0x1FE - ($ - $$) db 0x00
 dw 0xAA55

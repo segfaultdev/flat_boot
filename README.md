@@ -13,6 +13,7 @@ Thanks to Octocontrabass and bzt for helping me adding more features and making 
 - Up to 10 entries(or as many as you want if you do not care about using symbols and letters).
 - Customizable help menu, add all the text you want into it.
 - Reboot option from inside the bootloader itself.
+- Boot binaries up to exactly 480 KiB.
 
 ## Screenshots
 My OS's default boot menu:<br>

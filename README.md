@@ -1,5 +1,3 @@
-**Warning:** This branch is a _development_ branch, and it probably will not compile.
-
 # flat_boot
 flat_boot is a single-stage, 512-byte bootloader designed for the x86 platform, and it has been tested on QEMU, VirtualBox, Bochs, a core 2 quad, a modern i7 and two 486s. Unlike most other single-stage bootloaders out there, this one is almost as configurable and user-friendly as advanced bootloaders like GRUB, making it a great alternative if the OS you want to load is loadable in binary format.
 

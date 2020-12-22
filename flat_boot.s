@@ -16,6 +16,9 @@ flat_boot:
   mov es, ax
   mov ss, ax
   mov sp, FLAT_STACK
+
+  cld
+
   mov [FLAT_DEVICE], dl
   mov di, FLAT_DAP
   mov cx, 0x0008
@@ -24,21 +27,15 @@ flat_boot:
   mov bx, FLAT_DIR_BUFFER
 
   pusha
-  ; xor ax, ax ; Could be skipped
-  ; mov cx, 0x0008 ; Could be skipped
-  mov dx, cx ; mov dx, 0x0008 ; Could be replaced with "mov dx, cx"
+  mov dx, cx
   call load_sectors
   popa
 
   mov si, flat_boot_dir_str
   mov di, FLAT_DIR_BUFFER
-  ; xor ax, ax ; Could be skipped
-  ; mov bx, FLAT_DIR_BUFFER
-  call load_blocks ; Could be skipped
+  call load_blocks
 
   mov si, flat_config_file_str
-  ; mov di, FLAT_DIR_BUFFER
-  ; xor ax, ax ; Could be skipped
   mov bx, FLAT_FILE_BUFFER
   call load_blocks
 
@@ -48,17 +45,15 @@ flat_menu:
   mov es, ax
   xor di, di
   mov cx, 0x0FA0
-  mov ah, 0x0F
+  mov ah, ch
   call mem_set
   mov cx, 0x0050
   mov ah, 0x70
   call mem_set
   mov di, 0x0F00
   call mem_set
-  ; xor ax, ax
-  ; mov es, ax
   pop es
-  mov si, flat_menu_reboot_str
+  mov si, flat_menu_key_str
   mov bx, 0x0DC2
   call puts
   mov si, flat_menu_title_str
@@ -85,7 +80,7 @@ flat_menu_list:
 flat_menu_handler:
   xor ax, ax
   int 0x16
-  
+  mov di, FLAT_DIR_BUFFER
   cmp ah, 0x3B
   je help
   cmp ah, 0x3C
@@ -99,21 +94,20 @@ flat_menu_handler:
   add cl, cl
   inc cl
   mov si, FLAT_FILE_BUFFER
-  call str_nth
-  
-  mov di, FLAT_DIR_BUFFER
+str_nth:
+  test cl, cl
+  jz str_nth_end
+  dec cl
+  call str_next
+  jmp str_nth
+str_nth_end:
   xor ax, ax
   mov bx, FLAT_FILE_BUFFER
   call load_blocks
-
-  ; mov ax, 0x1112
-  ; xor bl, bl
-  ; int 0x10
   mov ax, 0x2401
   int 0x15
   cli
   lgdt [gdt_ptr]
-
   mov eax, cr0 
   or al, 0x01 ; or eax, 0x00000001
   mov cr0, eax
@@ -124,35 +118,14 @@ help:
   xor ax, ax
   mov bx, FLAT_HELP_BUFFER
   call load_blocks
-  mov si, bx
-  mov dh, 0x70
-  mov bx, 0x0150
-  mov cl, 0x10 ; Line count
-.line_loop:
-  test cl, cl
-  jz .line_end
-  mov ch, 0x40 ; Char count
-.char_loop:
-  test ch, ch
-  jz .char_end
-  mov dl, [si]
-  inc si
-  push es
-  mov ah, 0xB8
-  mov es, ax
-  mov [es:bx], dx
-  add bx, 0x0002
-  pop es
-  dec ch
-  jmp .char_loop
-.char_end:
-  add bx, 0x0020
-  dec cl
-  jmp .line_loop
-.line_end:
+  mov bp, bx
+  mov ah, 0x13
+  mov bx, 0x000F
+  mov cx, 0x0200
+  mov dx, cx
+  int 0x10
   xor ax, ax
   int 0x16
-  ; jmp reboot
 
 reboot:
   int 0x19
@@ -164,14 +137,23 @@ load_blocks:
   ; - ax: Load segment
   ; - bx: Load offset
   pusha
-  mov cx, 0x0040
+  mov cl, 0x40
 .load_loop:
-  test cx, cx
+  test cl, cl
   jz $
-  call str_cmp
+  pusha
+.str_cmp_loop:
+  cmp byte [si], 0x20
+  jl .str_cmp_end
+  cmpsb
+  je .str_cmp_loop
+.str_cmp_end:
+  mov al, [si]
+  cmp [di], al
+  popa
   jz .end_load_loop
   add di, 0x0040
-  dec cx
+  dec cl
   jmp .load_loop
 .end_load_loop:
   pusha
@@ -210,7 +192,6 @@ mem_set: ; Thanks to Octocontrabass for making it smaller
   ; - cx: Word count
   ; - ax: What to set all words to
   pusha
-  cld
   rep stosw
   popa
   ret
@@ -247,26 +228,6 @@ load_sectors_loop:
 load_sectors_end:
   ret
 
-str_cmp:
-  pusha
-str_cmp_loop:
-  cmp byte [si], 0x20
-  jl str_cmp_end
-  mov al, [di]
-  cmp [si], al
-  jne str_cmp_end
-  inc si
-  inc di
-  jmp str_cmp_loop
-str_cmp_end:
-  mov al, [si]
-  cmp al, 0x0A
-  je str_cmp_skip
-  cmp [di], al
-str_cmp_skip:
-  popa
-  ret
-
 puts:
   push es
   pusha
@@ -295,24 +256,16 @@ str_next:
 str_next_end:
   ret
 
-str_nth:
-  test cl, cl
-  jz str_nth_end
-  dec cl
-  call str_next
-  jmp str_nth
-str_nth_end:
-  ret
-
-flat_menu_title_str:  db "flat_boot:", 0x00 ; Menu title
-flat_menu_sel_str:    db "[0]", 0x00 ; Menu selector
-flat_menu_help_str:   db "[F1] Help", 0x00 ; Help string
-flat_menu_reboot_str: db "[F2] Reboot" ; , 0x00 ; Reboot string
+flat_menu_title_str: db "flat_boot:", 0x00 ; Menu title
+flat_menu_sel_str:   db "[0]", 0x00 ; Menu selector
+flat_menu_key_str:   db "F1: Help, F2: Exit" ; , 0x00
 
 gdt_start:
-gdt_null: ; 0x00
-  dd 0x00000000
-  dd 0x00000000
+  db 0x00
+entry_cnt: db 0x00
+gdt_ptr:
+  dw gdt_end - gdt_start
+  dd gdt_start
 gdt_code: ; 0x08
   dw 0xFFFF ; limit_lo
   dw 0x0000 ; base_lo
@@ -322,15 +275,9 @@ gdt_code: ; 0x08
   db 0x00   ; base_hi
 gdt_end:
 
-gdt_ptr:
-  dw gdt_end - gdt_start
-  dd gdt_start
-
 flat_config_file_str: db "config.txt", 0x00
 flat_help_file_str:   db "help.txt", 0x00
-flat_boot_dir_str:    db "boot" ; , 0x00
-
-entry_cnt: db 0x00
+flat_boot_dir_str:    db "boot", 0x00
 
 times 0x1FE - ($ - $$) db 0x00
 dw 0xAA55

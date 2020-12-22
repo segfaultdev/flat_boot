@@ -17,7 +17,7 @@ Thanks to Octocontrabass and bzt for helping me adding more features and making 
 
 ## Screenshots
 My OS's default boot menu:<br>
-![](https://github.com/segfaultdev/flat_boot/raw/development/photo.png)
+![](https://github.com/segfaultdev/flat_boot/raw/main/photo.png)
 
 ## Does it boot into protected mode?
 Yes, and it is loaded into address 0x8000, inside the first MiB, but the loaded GDT just has a single code entry, and you should replace it in your first instruction on the loaded binary with something like ```lgdt [cs:gdt_ptr]```.
